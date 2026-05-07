@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="fb46875c-683a-4fee-9ebb-32b9c462440e" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="error-flow-checkFlow" doc:id="d1048c20-e997-4ada-a808-087b608a9bc1" >
+		<http:listener doc:name="Listener" doc:id="c9ebcf41-9210-4c0e-bfa1-0d68f04f0af0" config-ref="HTTP_Listener_config" path="/checkError">
+			<http:error-response >
+				<http:body ><![CDATA[#[output json --- payload]]]></http:body>
+			</http:error-response>
+		</http:listener>
+		<set-variable value="#[correlationId]" doc:name="Set Variable" doc:id="6ee02141-67a0-4db4-b246-dbd78f233b37" variableName="correlationId"/>
+		<flow-ref doc:name="Flow Reference" doc:id="ad1771d0-7a4c-40ab-8b17-985032eae5e7" name="error-flow-checkFlow1"/>
+		<error-handler ref="error-handlerError_Handler" />
+	</flow>
+	<flow name="error-flow-checkFlow1" doc:id="3730bb4a-78e9-4d1e-b8f5-6d9b2f85fa86" >
+		<logger level="INFO" doc:name="Logger" doc:id="12ac7bba-8946-41df-8861-6c7ae0c68fbb" />
+		<flow-ref doc:name="Flow Reference" doc:id="a5bd2f61-e1ea-4c56-98fb-60289a8c2577" name="error-flow-checkSub_Flow"/>
+		<logger level="INFO" doc:name="Logger" doc:id="3d835c20-55f5-4fa4-b3fb-b4715970bfec" message="logger ends"/>
+	</flow>
+	<flow name="error-flow-checkFlow2" doc:id="1a08ab03-18e7-4e8a-af94-48f9f5e7a90a" >
+		<scheduler doc:name="Scheduler" doc:id="b8e64456-7faa-487e-a4dd-45118788e061" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="10" timeUnit="MINUTES"/>
+			</scheduling-strategy>
+		</scheduler>
+		<ee:transform doc:name="Transform Message" doc:id="9d75bef9-be1e-4266-9180-4c8f084416c3" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+1 to 10]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<parallel-foreach doc:name="Parallel For Each" doc:id="3dd3e781-b3b5-44ac-9b3a-65f08a407f44" collection="#[payload]" maxConcurrency="3">
+			<ee:transform doc:name="Transform Message" doc:id="0adbd5c0-b4b5-419d-ba01-f6e0fe844bc8" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"adding": payload + 10
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+		</parallel-foreach>
+		<logger level="INFO" doc:name="Logger" doc:id="7ee570a3-adc5-4364-9dbd-e21685a644d5" message="#[payload]"/>
+	</flow>
+	<sub-flow name="error-flow-checkSub_Flow" doc:id="bad34bf4-25a2-45e4-8455-00ef5ace3ab8" >
+		<try doc:name="Try" doc:id="11a3c5f8-92e3-4554-b912-39a99e09d923" >
+			<http:request doc:name="Request" doc:id="787071b2-d326-4c91-9322-5dce452464c6" method="POST" url="http://localhost:8082/api2" sendCorrelationId="ALWAYS" correlationId="#[vars.correlationId default correlationId]" />
+		</try>
+	</sub-flow>
+</mule>
